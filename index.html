@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رصدگر لحظه‌ای رمزارزها | قیمت ارزهای دیجیتال</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tanha&display=swap');
+        body {
+            font-family: 'Tanha', sans-serif;
+            background-color: #f8fafc;
+        }
+        .crypto-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .price-up {
+            color: #10b981;
+        }
+        .price-down {
+            color: #ef4444;
+        }
+        .last-update {
+            direction: ltr;
+        }
+        .loading-spinner {
+            border-top-color: #3b82f6;
+            animation: spinner 1s linear infinite;
+        }
+        @keyframes spinner {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 mb-2">رصدگر لحظه‌ای رمزارزها</h1>
+            <p class="text-gray-600">قیمت‌های به‌روز شده ارزهای دیجیتال به صورت لحظه‌ای</p>
+			        <a href="./name.html" class="text-sm text-blue-500 hover:underline block text-center mb-4">ثبت نام</a>
+            
+            <div class="flex justify-center items-center mt-6">
+                <div id="lastUpdate" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm flex items-center">
+                    <i class="fas fa-clock ml-2"></i>
+                    <span class="last-update">در حال دریافت داده‌ها...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search and Filter -->
+        <div class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="relative w-full md:w-1/2">
+                    <input type="text" id="searchInput" placeholder="جستجوی رمزارز..." 
+                           class="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button id="sortMarketCap" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition">
+                        <i class="fas fa-chart-line ml-1"></i> ارزش بازار
+                    </button>
+                    <button id="sortVolume" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                        <i class="fas fa-exchange-alt ml-1"></i> حجم معاملات
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="flex justify-center items-center py-12">
+            <div class="w-12 h-12 border-4 border-blue-200 rounded-full loading-spinner"></div>
+        </div>
+
+        <!-- Crypto Table -->
+        <div id="cryptoTable" class="hidden">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="grid grid-cols-12 bg-gray-100 p-4 font-bold text-gray-700 border-b">
+                    <div class="col-span-1 text-center">#</div>
+                    <div class="col-span-4">نام رمزارز</div>
+                    <div class="col-span-2 text-left">قیمت (دلار)</div>
+                    <div class="col-span-2 text-left">تغییر 24h</div>
+                    <div class="col-span-2 text-left">حجم معاملات</div>
+                    <div class="col-span-1 text-left">نمودار</div>
+                </div>
+                <div id="cryptoList"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center text-gray-500 text-sm">
+            <p>تمامی قیمت‌ها به دلار آمریکا (USD) می‌باشند و هر دقیقه به‌روز می‌شوند.</p>
+            <p class="mt-2">© 2023 رصدگر رمزارزها - تمامی حقوق محفوظ است.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Persian translations
+        const translations = {
+            market_cap: "ارزش بازار",
+            price: "قیمت",
+            price_change_percentage_24h: "تغییر 24h",
+            total_volume: "حجم معاملات",
+            last_updated: "آخرین به‌روزرسانی:",
+            loading: "در حال دریافت داده‌ها...",
+            updated_at: "به‌روز شده در"
+        };
+
+        // Fetch crypto data
+        async function fetchCryptoData() {
+            try {
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('cryptoTable').classList.add('hidden');
+                
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h');
+                const data = await response.json();
+                
+                displayCryptoData(data);
+                updateLastUpdateTime();
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('cryptoTable').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        <i class="fas fa-exclamation-triangle ml-2"></i>
+                        خطا در دریافت داده‌ها. لطفاً دوباره تلاش کنید.
+                    </div>
+                `;
+            }
+        }
+
+        // Display crypto data
+        function displayCryptoData(cryptos) {
+            const cryptoList = document.getElementById('cryptoList');
+            cryptoList.innerHTML = '';
+            
+            cryptos.forEach((crypto, index) => {
+                const priceChange = crypto.price_change_percentage_24h;
+                const priceChangeClass = priceChange >= 0 ? 'price-up' : 'price-down';
+                const priceChangeIcon = priceChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                
+                const cryptoItem = document.createElement('div');
+                cryptoItem.className = 'grid grid-cols-12 p-4 items-center border-b hover:bg-gray-50 transition';
+                cryptoItem.innerHTML = `
+                    <div class="col-span-1 text-center text-gray-500">${index + 1}</div>
+                    <div class="col-span-4 flex items-center">
+                        <img src="${crypto.image}" alt="${crypto.name}" class="w-8 h-8 ml-3">
+                        <div>
+                            <div class="font-bold">${crypto.name}</div>
+                            <div class="text-gray-500 text-sm">${crypto.symbol.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div class="col-span-2 text-left font-medium">$${crypto.current_price.toLocaleString()}</div>
+                    <div class="col-span-2 text-left">
+                        <span class="${priceChangeClass}">
+                            <i class="fas ${priceChangeIcon} ml-1"></i>
+                            ${Math.abs(priceChange).toFixed(2)}%
+                        </span>
+                    </div>
+                    <div class="col-span-2 text-left text-gray-600">$${crypto.total_volume.toLocaleString()}</div>
+                    <div class="col-span-1">
+                        <div class="w-16 h-10">
+                            <canvas class="sparkline" data-values="${crypto.sparkline_in_7d.price.join(',')}"></canvas>
+                        </div>
+                    </div>
+                `;
+                cryptoList.appendChild(cryptoItem);
+            });
+            
+            // Draw sparklines
+            drawSparklines();
+        }
+
+        // Draw sparkline charts
+        function drawSparklines() {
+            const sparklines = document.querySelectorAll('.sparkline');
+            sparklines.forEach(sparkline => {
+                const values = sparkline.getAttribute('data-values').split(',').map(Number);
+                const ctx = sparkline.getContext('2d');
+                
+                // Determine line color based on trend
+                const firstValue = values[0];
+                const lastValue = values[values.length - 1];
+                const lineColor = lastValue >= firstValue ? '#10b981' : '#ef4444';
+                
+                // Draw sparkline
+                ctx.beginPath();
+                ctx.moveTo(0, 40 - ((values[0] - Math.min(...values)) / (Math.max(...values) - Math.min(...values))) * 40);
+                
+                for (let i = 1; i < values.length; i++) {
+                    const x = (i / (values.length - 1)) * 64;
+                    const y = 40 - ((values[i] - Math.min(...values)) / (Math.max(...values) - Math.min(...values))) * 40;
+                    ctx.lineTo(x, y);
+                }
+                
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            };
+            const persianDate = now.toLocaleDateString('fa-IR', options);
+            document.getElementById('lastUpdate').innerHTML = `
+                <i class="fas fa-clock ml-2"></i>
+                ${translations.updated_at} ${persianDate}
+            `;
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cryptoItems = document.querySelectorAll('#cryptoList > div');
+            
+            cryptoItems.forEach(item => {
+                const name = item.querySelector('div:nth-child(2) div:first-child').textContent.toLowerCase();
+                const symbol = item.querySelector('div:nth-child(2) div:last-child').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || symbol.includes(searchTerm)) {
+                    item.style.display = 'grid';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Sort by market cap
+        document.getElementById('sortMarketCap').addEventListener('click', function() {
+            fetchCryptoData(); // Default is sorted by market cap
+        });
+
+        // Sort by volume
+        document.getElementById('sortVolume').addEventListener('click', async function() {
+            try {
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('cryptoTable').classList.add('hidden');
+                
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h');
+                const data = await response.json();
+                
+                displayCryptoData(data);
+                updateLastUpdateTime();
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('cryptoTable').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        });
+
+        // Initial fetch
+        fetchCryptoData();
+        
+        // Update every minute
+        setInterval(fetchCryptoData, 60000);
+    </script>
+</body>
+</html>

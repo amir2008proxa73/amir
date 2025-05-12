@@ -1,0 +1,34 @@
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فرم ثبت‌نام</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body style="background:blue;"class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-center text-purple-700">ثبت نام در ارز دیجیتالم</h2>
+        <a href="./index.html" class="text-sm text-blue-500 hover:underline block text-center mb-4">برگشت به صفحه اصلی</a>
+
+        <form method="post" action="" class="space-y-4">
+            <input type="text" name="fullname" placeholder="نام کامل" required
+                class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+
+            <input type="email" name="email" placeholder="ایمیل" required
+                class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+
+            <input type="text" name="phone" placeholder="شماره موبایل" required
+                class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+
+            <input type="password" name="password" placeholder="رمز عبور" required
+                class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+
+            <input type="submit" name="save" value="ثبت نام"
+                class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition">
+        </form>
+
+        <div class="mt-4 text-center text-sm text-gray-600">
+            حساب دارید؟ <a href="login.html" class="text-purple-600 hover:underline">وارد شوید</a>
+        </div>
+    </div>
+</body>
+</html>
